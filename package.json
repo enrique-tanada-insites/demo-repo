@@ -1,0 +1,9 @@
+{
+  "name": "demo-repo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CloudShell test repository with a build (TW#27022015)",
+  "scripts": {
+    "build": "node build.js"
+  }
+}
