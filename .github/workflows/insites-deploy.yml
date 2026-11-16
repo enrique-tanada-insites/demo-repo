@@ -1,0 +1,74 @@
+# Written by Insites CloudShell ("Set up automatic deploys"). It builds this branch and
+# deploys the build output to the Insites instance the branch is linked to. It signs in with
+# GitHub's OIDC token, so no Insites key or secret is stored in this repository.
+# The output folder must hold the instance's app/ (and modules/, if any) at its top.
+name: Deploy to Insites
+
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: insites-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDSHELL_API: 'https://cloudshell.staging.insites.io'
+      BUILD_DIR: '.'
+      OUTPUT_DIR: 'dist'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build
+        working-directory: ${{ env.BUILD_DIR }}
+        run: npm ci && npm run build
+
+      - name: Deploy to Insites
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          set -euo pipefail
+          token() { curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$CLOUDSHELL_API" | jq -r .value; }
+          api() { local method=$1 path=$2; shift 2; curl -sS -X "$method" -H "Authorization: Bearer $(token)" -H 'Content-Type: application/json' "$CLOUDSHELL_API$path" "$@"; }
+
+          if [ ! -d "$OUTPUT_DIR/app" ] && [ ! -d "$OUTPUT_DIR/modules" ]; then
+            echo "::error::$OUTPUT_DIR has no app/ or modules/ folder, so there is nothing to deploy."; exit 1
+          fi
+          (cd "$OUTPUT_DIR" && zip -qr "$RUNNER_TEMP/bundle.zip" .)
+          SHA=$(sha256sum "$RUNNER_TEMP/bundle.zip" | cut -d' ' -f1)
+
+          SLOT=$(api POST /v2/github/actions/deploys -d '{}')
+          DEPLOY_ID=$(echo "$SLOT" | jq -r '.deployId // empty')
+          if [ -z "$DEPLOY_ID" ]; then echo "::error::$(echo "$SLOT" | jq -r '.error // .')"; exit 1; fi
+          FIELDS=()
+          while IFS= read -r field; do FIELDS+=(-F "$field"); done < <(echo "$SLOT" | jq -r '.upload.fields | to_entries[] | "\(.key)=\(.value)"')
+          curl -sSf "${FIELDS[@]}" -F "file=@$RUNNER_TEMP/bundle.zip" "$(echo "$SLOT" | jq -r .upload.url)" > /dev/null
+
+          COMMIT=$(api POST "/v2/github/actions/deploys/$DEPLOY_ID/commit" -d "{\"sha256\":\"$SHA\"}")
+          if [ "$(echo "$COMMIT" | jq -r '.status // empty')" != queued ]; then echo "::error::$(echo "$COMMIT" | jq -r '.error // .')"; exit 1; fi
+          echo "Deploy $DEPLOY_ID queued"
+
+          for _ in $(seq 1 120); do
+            sleep 10
+            RESULT=$(api GET "/v2/github/actions/deploys/$DEPLOY_ID")
+            STATUS=$(echo "$RESULT" | jq -r '.status // empty')
+            echo "Deploy $DEPLOY_ID: $STATUS"
+            case "$STATUS" in
+              success) exit 0 ;;
+              failed) echo "::error::$(echo "$RESULT" | jq -r '.error // "The deploy failed."')"; exit 1 ;;
+            esac
+          done
+          echo "::error::Deploy $DEPLOY_ID did not finish within 20 minutes. Check the instance's deployments in Insites."
+          exit 1
