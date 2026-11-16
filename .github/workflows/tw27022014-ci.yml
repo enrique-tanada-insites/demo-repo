@@ -1,0 +1,8 @@
+# TW#27022014 test: repository files like this one must never reach the instance.
+name: tw27022014
+on: workflow_dispatch
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo noop
