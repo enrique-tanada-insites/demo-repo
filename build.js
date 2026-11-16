@@ -6,5 +6,5 @@ const sha = (process.env.GITHUB_SHA || 'local').slice(0, 7);
 const out = path.join('dist', 'app', 'views', 'pages');
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'tw27022015-built.liquid'),
-  `---\nslug: tw27022015-built\n---\n<h1>TW#27022015: built by GitHub Actions from ${sha}</h1>\n<p>built-by=${process.env.GITHUB_ACTIONS ? 'github-actions' : 'elsewhere'}</p>\n`);
+  `---\nslug: tw27022015-built\n---\n<h1>TW#27022016 CONFLICTING change, built by GitHub Actions from ${sha}</h1>\n<p>built-by=${process.env.GITHUB_ACTIONS ? 'github-actions' : 'elsewhere'}</p>\n`);
 console.log(`built dist/ from ${sha}`);
