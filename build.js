@@ -8,6 +8,3 @@ fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'tw27022015-built.liquid'),
   `---\nslug: tw27022015-built\n---\n<h1>TW#27022016 PROMOTED from tw27022016-promote, built by GitHub Actions from ${sha}</h1>\n<p>built-by=${process.env.GITHUB_ACTIONS ? 'github-actions' : 'elsewhere'}</p>\n`);
 console.log(`built dist/ from ${sha}`);
-// TW#27027615 test: a page that never changes, and one a later build stops making.
-fs.writeFileSync(path.join(out, 'hf-stable.liquid'), 'stable page\n');
-fs.writeFileSync(path.join(out, 'hf-built-broken.liquid'), '{% if %}\n'); // TW#27027615 test: a broken page
