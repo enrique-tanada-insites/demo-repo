@@ -10,3 +10,5 @@ fs.writeFileSync(path.join(out, 'tw27022015-built.liquid'),
 console.log(`built dist/ from ${sha}`);
 // TW#27027615 test: a page that never changes, and one a later build stops making.
 fs.writeFileSync(path.join(out, 'hf-stable.liquid'), 'stable page\n');
+fs.writeFileSync(path.join(out, 'hf-built-broken.liquid'), '{% if %}
+'); // TW#27027615 test: a broken page
