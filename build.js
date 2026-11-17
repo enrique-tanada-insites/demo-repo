@@ -10,4 +10,3 @@ fs.writeFileSync(path.join(out, 'tw27022015-built.liquid'),
 console.log(`built dist/ from ${sha}`);
 // TW#27027615 test: a page that never changes, and one a later build stops making.
 fs.writeFileSync(path.join(out, 'hf-stable.liquid'), 'stable page\n');
-if (!process.env.HF_DROP) fs.writeFileSync(path.join(out, 'hf-remove.liquid'), 'page to remove\n');
